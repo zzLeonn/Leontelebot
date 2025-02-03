@@ -52,27 +52,31 @@ async def check_group_permissions(update: Update, context: ContextTypes.DEFAULT_
                 context.bot.id
             )
 
-            # For administrators, we already have all basic permissions
+            # For administrators, check if we can send media for specific commands
             if bot_member.status == 'administrator':
-                # For media commands, check media permissions
                 command = update.message.text.split()[0][1:] if update.message.text else ""
                 if command in ['gif', 'image', 'poll'] and not bot_member.can_send_media_messages:
                     logging.warning(f"Bot lacks media permissions in chat {update.effective_chat.id}")
-                    await update.message.reply_text("I don't have permission to send media in this group!")
+                    await update.message.reply_text("I need permission to send media for this command to work!")
                     return False
                 return True
 
-            # For non-admin members, check if we can send messages
-            if bot_member.status != 'member':
-                logging.warning(f"Bot has restricted status in chat {update.effective_chat.id}")
-                await update.message.reply_text("I don't have basic permissions in this group!")
-                return False
+            # For regular members
+            if bot_member.status == 'member':
+                return True
 
+            # For restricted/other status
+            logging.warning(f"Bot has restricted status in chat {update.effective_chat.id}")
+            await update.message.reply_text("I need to be an admin or a regular member to work properly!")
+            return False
+
+        # For private chats or other types, always return True
         return True
+
     except Exception as e:
         logging.error(f"Error checking group permissions: {str(e)}")
         # Don't expose error details to users
-        await update.message.reply_text("I'm having trouble checking my permissions in this group.")
+        await update.message.reply_text("I'm having trouble responding in this chat. Please make sure I have the right permissions!")
         return False
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
