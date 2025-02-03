@@ -21,6 +21,8 @@ from .config import (
 )
 from .logger import log_command, log_message
 from .messages import get_response_for_text
+import operator
+from typing import Dict, Callable
 
 # Store user points/karma
 user_points = {}
@@ -29,6 +31,16 @@ user_preferences = {}
 
 # Store active polls
 active_polls = {}
+
+# Add safe calculation operations
+SAFE_OPERATORS: Dict[str, Callable] = {
+    '+': operator.add,
+    '-': operator.sub,
+    '*': operator.mul,
+    '/': operator.truediv
+}
+
+WEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY")
 
 async def check_group_permissions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     """Check if bot has necessary permissions in a group"""
@@ -68,7 +80,7 @@ async def joke_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not await check_group_permissions(update, context):
             return
-        response = requests.get("https://v2.jokeapi.dev/joke/Miscellaneous,Pun,Spooky,Christmas?safe-mode&type=twopart")
+        response = requests.get("https://v2.jokeapi.dev/joke/Miscellaneous,Pun,Spooky,Christmas?safe-mode&type=twopart", timeout=10)
         if response.status_code == 200:
             data = response.json()
             if data['type'] == 'single':
@@ -78,6 +90,9 @@ async def joke_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"😄 Here's a joke for you:\n\n{joke}")
         else:
             await update.message.reply_text(ERROR_MESSAGE)
+    except requests.RequestException as e:
+        logging.error(f"Joke API error: {str(e)}")
+        await update.message.reply_text("Sorry, I couldn't fetch a joke right now. Please try again later.")
     except Exception as e:
         logging.error(f"Error in joke_command: {str(e)}")
         await update.message.reply_text(ERROR_MESSAGE)
@@ -88,13 +103,16 @@ async def quote_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not await check_group_permissions(update, context):
            return
-        response = requests.get("https://api.quotable.io/random")
+        response = requests.get("https://api.quotable.io/random", timeout=10)
         if response.status_code == 200:
             data = response.json()
             quote = f"{data['content']}\n- {data['author']}"
             await update.message.reply_text(f"✨ Here's your quote:\n\n{quote}")
         else:
             await update.message.reply_text(ERROR_MESSAGE)
+    except requests.RequestException as e:
+        logging.error(f"Quote API error: {str(e)}")
+        await update.message.reply_text("Sorry, I couldn't fetch a quote right now. Please try again later.")
     except Exception as e:
         logging.error(f"Error in quote_command: {str(e)}")
         await update.message.reply_text(ERROR_MESSAGE)
@@ -105,13 +123,16 @@ async def fact_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not await check_group_permissions(update, context):
             return
-        response = requests.get("https://uselessfacts.jsph.pl/api/v2/facts/random?language=en")
+        response = requests.get("https://uselessfacts.jsph.pl/api/v2/facts/random?language=en", timeout=10)
         if response.status_code == 200:
             data = response.json()
             fact = data['text']
             await update.message.reply_text(f"🤓 Did you know?\n\n{fact}")
         else:
             await update.message.reply_text(ERROR_MESSAGE)
+    except requests.RequestException as e:
+        logging.error(f"Facts API error: {str(e)}")
+        await update.message.reply_text("Sorry, I couldn't fetch a fact right now. Please try again later.")
     except Exception as e:
         logging.error(f"Error in fact_command: {str(e)}")
         await update.message.reply_text(ERROR_MESSAGE)
@@ -129,7 +150,7 @@ async def roll_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(ERROR_MESSAGE)
 
 async def calc_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle the /calc command"""
+    """Handle the /calc command with safe evaluation"""
     log_command(update, "calc")
     try:
         if not await check_group_permissions(update, context):
@@ -140,17 +161,72 @@ async def calc_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(INVALID_EXPRESSION)
             return
 
-        # Clean and validate the expression
-        if not re.match(r'^[\d\+\-\*\/\(\)\s\.]+$', expression):
+        # Parse and evaluate the expression safely
+        try:
+            # Remove all whitespace and validate characters
+            expression = ''.join(expression.split())
+            if not re.match(r'^[\d\+\-\*\/\(\)\.]+$', expression):
+                await update.message.reply_text(INVALID_EXPRESSION)
+                return
+
+            # Tokenize the expression
+            tokens = re.findall(r'[\d.]+|[+\-*/()]', expression)
+            result = evaluate_expression(tokens)
+            await update.message.reply_text(f"🧮 {expression} = {result}")
+        except (ValueError, ZeroDivisionError, SyntaxError) as e:
+            logging.warning(f"Invalid calculation attempt: {expression} - Error: {str(e)}")
             await update.message.reply_text(INVALID_EXPRESSION)
             return
 
-        # Calculate the result
-        result = eval(expression)
-        await update.message.reply_text(f"🧮 {expression} = {result}")
     except Exception as e:
         logging.error(f"Error in calc_command: {str(e)}")
-        await update.message.reply_text(INVALID_EXPRESSION)
+        await update.message.reply_text(ERROR_MESSAGE)
+
+def evaluate_expression(tokens: list) -> float:
+    """Safely evaluate a mathematical expression"""
+    output = []
+    operators = []
+    precedence = {'+': 1, '-': 1, '*': 2, '/': 2}
+
+    def apply_operator():
+        if len(output) < 2 or not operators:
+            raise SyntaxError("Invalid expression")
+        op = operators.pop()
+        b = float(output.pop())
+        a = float(output.pop())
+        if op in SAFE_OPERATORS:
+            if op == '/' and b == 0:
+                raise ZeroDivisionError("Division by zero")
+            output.append(SAFE_OPERATORS[op](a, b))
+        else:
+            raise ValueError("Invalid operator")
+
+    for token in tokens:
+        if token.replace('.', '', 1).isdigit():
+            output.append(float(token))
+        elif token in SAFE_OPERATORS:
+            while (operators and operators[-1] != '(' and 
+                   precedence.get(operators[-1], 0) >= precedence.get(token, 0)):
+                apply_operator()
+            operators.append(token)
+        elif token == '(':
+            operators.append(token)
+        elif token == ')':
+            while operators and operators[-1] != '(':
+                apply_operator()
+            if not operators or operators[-1] != '(':
+                raise SyntaxError("Mismatched parentheses")
+            operators.pop()  # Remove '('
+
+    while operators:
+        if operators[-1] == '(':
+            raise SyntaxError("Mismatched parentheses")
+        apply_operator()
+
+    if len(output) != 1:
+        raise SyntaxError("Invalid expression")
+    return output[0]
+
 
 async def weather_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /weather command"""
@@ -162,14 +238,22 @@ async def weather_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(WEATHER_USAGE)
             return
 
-        city = ' '.join(context.args)
-        # Using OpenWeatherMap API
-        API_KEY = "4ee0f92143bc013e827f995be66e5677"  # Free API key
-        url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
+        if not WEATHER_API_KEY:
+            await update.message.reply_text("Weather API is not configured. Please contact the bot administrator.")
+            return
 
-        response = requests.get(url)
-        if response.status_code == 200:
+        city = ' '.join(context.args)
+        url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={WEATHER_API_KEY}&units=metric"
+
+        try:
+            response = requests.get(url, timeout=10)  # Add timeout
+            response.raise_for_status()  # Raise exception for bad status codes
+
             data = response.json()
+            if 'message' in data and data.get('cod') != 200:
+                await update.message.reply_text(f"Error: {data['message']}")
+                return
+
             weather_desc = data['weather'][0]['description']
             temp = data['main']['temp']
             humidity = data['main']['humidity']
@@ -183,8 +267,18 @@ async def weather_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"💨 Wind Speed: {wind} m/s"
             )
             await update.message.reply_text(weather_msg)
-        else:
-            await update.message.reply_text("Sorry, I couldn't find weather information for that city.")
+
+        except requests.RequestException as e:
+            logging.error(f"Weather API error for city {city}: {str(e)}")
+            await update.message.reply_text(
+                "Sorry, I couldn't fetch the weather information. Please try again later."
+            )
+        except KeyError as e:
+            logging.error(f"Weather data parsing error: {str(e)}")
+            await update.message.reply_text(
+                "Sorry, I couldn't find weather information for that city."
+            )
+
     except Exception as e:
         logging.error(f"Error in weather_command: {str(e)}")
         await update.message.reply_text(ERROR_MESSAGE)
@@ -202,7 +296,6 @@ async def poll_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "Usage: /poll Question? Option1 Option2 [Option3...]"
             )
             return
-
         # First argument is the question
         question = context.args[0].replace('_', ' ')
         options = [opt.replace('_', ' ') for opt in context.args[1:]]
@@ -222,7 +315,7 @@ async def poll_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'options': options,
             'votes': {i: [] for i in range(len(options))}
         }
-
+        
         await update.message.reply_text(
             f"📊 Poll: {question}\n\nClick to vote:",
             reply_markup=reply_markup
@@ -271,7 +364,7 @@ async def handle_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logging.error(f"Error in handle_vote: {str(e)}")
         await query.answer("An error occurred while processing your vote.")
-
+        
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle user messages"""
     log_message(update)
@@ -279,10 +372,19 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Only respond to messages in private chats or when mentioned in groups
         if update.effective_chat.type != 'private':
             # Check if bot was mentioned or message is a reply to bot's message
-            if not (update.message.entities and any(
-                entity.type == 'mention' and context.bot.username in update.message.text[entity.offset:entity.offset + entity.length]
-                for entity in update.message.entities
-            )):
+            mentioned = False
+            if update.message.entities:
+                for entity in update.message.entities:
+                    if entity.type == 'mention':
+                        # Extract mention text and check if it's this bot
+                        mention = update.message.text[entity.offset:entity.offset + entity.length]
+                        if context.bot.username in mention:
+                            mentioned = True
+                            break
+
+            # If not mentioned and not a reply to bot's message, don't respond
+            if not mentioned and not (update.message.reply_to_message and 
+                                    update.message.reply_to_message.from_user.id == context.bot.id):
                 return
 
         if not await check_group_permissions(update, context):
@@ -306,7 +408,7 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(ERROR_MESSAGE)
     except:
         pass
-
+    
 async def gif_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /gif command"""
     log_command(update, "gif")
@@ -317,25 +419,36 @@ async def gif_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Please provide a search term (e.g., /gif cat)")
             return
 
-        search_term = ' '.join(context.args)
         API_KEY = os.environ.get("TENOR_API_KEY")
         if not API_KEY:
-            await update.message.reply_text("Tenor API key not configured. Please contact the bot administrator.")
+            await update.message.reply_text("GIF search is not configured. Please contact the bot administrator.")
             return
 
+        search_term = ' '.join(context.args)
         limit = 1
         url = f"https://tenor.googleapis.com/v2/search?q={search_term}&key={API_KEY}&limit={limit}"
 
-        response = requests.get(url)
-        if response.status_code == 200:
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
             data = response.json()
-            if data['results']:
+
+            if 'error' in data:
+                logging.error(f"Tenor API error: {data['error']}")
+                await update.message.reply_text("Sorry, there was an error with the GIF search.")
+                return
+
+            if data.get('results'):
                 gif_url = data['results'][0]['media_formats']['gif']['url']
                 await update.message.reply_animation(gif_url)
             else:
                 await update.message.reply_text("Sorry, I couldn't find any GIFs for that search term.")
-        else:
-            await update.message.reply_text(ERROR_MESSAGE)
+        except requests.RequestException as e:
+            logging.error(f"Tenor API error: {str(e)}")
+            await update.message.reply_text("Sorry, I couldn't fetch GIFs right now. Please try again later.")
+        except KeyError as e:
+            logging.error(f"Tenor API response parsing error: {str(e)}")
+            await update.message.reply_text("Sorry, there was an error processing the GIF search.")
     except Exception as e:
         logging.error(f"Error in gif_command: {str(e)}")
         await update.message.reply_text(ERROR_MESSAGE)
@@ -352,19 +465,26 @@ async def image_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Please provide a search term (e.g., /image nature)")
             return
 
-        search_term = ' '.join(context.args)
         API_KEY = os.environ.get("GOOGLE_SEARCH_API_KEY")
         SEARCH_ENGINE_ID = os.environ.get("GOOGLE_SEARCH_ENGINE_ID")
 
         if not API_KEY or not SEARCH_ENGINE_ID:
-            await update.message.reply_text("Google Search API not properly configured. Please contact the bot administrator.")
+            await update.message.reply_text("Image search is not configured. Please contact the bot administrator.")
             return
 
+        search_term = ' '.join(context.args)
         url = f"https://www.googleapis.com/customsearch/v1?key={API_KEY}&cx={SEARCH_ENGINE_ID}&q={search_term}&searchType=image&safe=active"
 
-        response = requests.get(url)
-        if response.status_code == 200:
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
             data = response.json()
+
+            if 'error' in data:
+                logging.error(f"Google Search API error: {data['error']['message']}")
+                await update.message.reply_text("Sorry, there was an error with the image search.")
+                return
+
             if 'items' in data and data['items']:
                 # Get first 5 images or less if fewer results are available
                 num_images = min(5, len(data['items']))
@@ -381,12 +501,15 @@ async def image_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         await update.message.reply_photo(images[0].media)
                 except Exception as media_error:
                     logging.error(f"Error sending media: {str(media_error)}")
-                    await update.message.reply_text("Sorry, I couldn't send the images. Please make sure I have permission to send media in this group.")
+                    await update.message.reply_text("Sorry, I couldn't send the images. Please try again later.")
             else:
                 await update.message.reply_text("Sorry, I couldn't find any images for that search term.")
-        else:
-            logging.error(f"Google Search API error: {response.status_code} - {response.text}")
-            await update.message.reply_text("Sorry, there was an error searching for images. Please try again later.")
+        except requests.RequestException as e:
+             logging.error(f"Google Search API error: {str(e)}")
+             await update.message.reply_text("Sorry, there was an error searching for images. Please try again later.")
+        except Exception as e:
+            logging.error(f"Error parsing search results: {str(e)}")
+            await update.message.reply_text("An error occurred while processing your request. Please try again later.")
     except Exception as e:
         logging.error(f"Error in image_command: {str(e)}")
         await update.message.reply_text("An error occurred while processing your request. Please try again later.")
@@ -480,11 +603,13 @@ async def handle_preference_callback(update: Update, context: ContextTypes.DEFAU
                 user_preferences[user_id] = {'notifications': True}
             user_preferences[user_id]['notifications'] = not user_preferences[user_id].get('notifications', True)
             status = "on" if user_preferences[user_id]['notifications'] else "off"
+            await query.answer(f"Notifications turned {status}")  # Give immediate feedback
             await query.message.edit_text(f"Notifications turned {status}!")
 
         elif query.data == "pref_welcome":
             # Enter state for setting welcome message
             context.user_data['setting_welcome'] = True
+            await query.answer("Please send your new welcome message")  # Give immediate feedback
             await query.message.edit_text("Please send your custom welcome message:")
 
         elif query.data == "pref_lang":
@@ -495,6 +620,7 @@ async def handle_preference_callback(update: Update, context: ContextTypes.DEFAU
                 [InlineKeyboardButton("French", callback_data="lang_fr")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.answer("Select your preferred language")  # Give immediate feedback
             await query.message.edit_text("Select your language:", reply_markup=reply_markup)
 
         elif query.data.startswith("lang_"):
@@ -503,12 +629,12 @@ async def handle_preference_callback(update: Update, context: ContextTypes.DEFAU
             if user_id not in user_preferences:
                 user_preferences[user_id] = {}
             user_preferences[user_id]['language'] = lang
+            await query.answer(f"Language set to {lang}")  # Give immediate feedback
             await query.message.edit_text(f"Language set to: {lang}")
 
-        await query.answer()
     except Exception as e:
         logging.error(f"Error in handle_preference_callback: {str(e)}")
-        await query.answer("An error occurred!")
+        await query.answer("An error occurred!")  # Give feedback even on error
 
 def register_handlers(application: Application):
     """Register all handlers with the application"""

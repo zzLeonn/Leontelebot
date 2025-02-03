@@ -1,7 +1,8 @@
 import os
 
 # Bot Configuration
-TELEGRAM_TOKEN = "8151451706:AAEbkxGi5LuvECuDeATtA4y0fs08dUpe2yM"
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8151451706:AAEbkxGi5LuvECuDeATtA4y0fs08dUpe2yM")
+WEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY", "4ee0f92143bc013e827f995be66e5677")
 
 # Command descriptions
 COMMANDS = {
