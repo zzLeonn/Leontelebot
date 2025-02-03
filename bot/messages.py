@@ -3,23 +3,23 @@ import random
 
 # Greeting patterns and responses
 GREETING_PATTERNS = [
-    'hi', 'hello', 'hey', 'howdy', 'nigga', 'morning', 'evening', 'lee lr',
-    'sup', 'yo', 'koko', 'good morning', 'good evening', 'min phane loe'
+    'hi', 'hello', 'hey', 'howdy', 'hey there', 'morning', 'evening',
+    'sup', 'yo', 'good morning', 'good evening'
 ]
 
 GREETING_RESPONSES = [
-    "yo nigga whats up",
-    "lee lr br ll phin loe ml",
-    "hey baby girl how you doing ",
-    "u make me bricked whats up ",
-    "br ll chou 1v1 ",
-    "hi what do u want",
+    "Hey! How can I help you today?",
+    "Hello! Nice to see you!",
+    "Hi there! What can I do for you?",
+    "Hey! Ready to help!",
+    "Hi! How are you doing?",
+    "Hello! How's your day going?",
 ]
 
 # Goodbye patterns and responses
 GOODBYE_PATTERNS = [
     'bye', 'goodbye', 'see you', 'cya', 'good night', 'night', 'farewell',
-    'have to go', 'gtg', 'time to sleep man', 'see ya'
+    'have to go', 'gtg', 'time to sleep', 'see ya'
 ]
 
 GOODBYE_RESPONSES = [
@@ -37,12 +37,12 @@ THANKS_PATTERNS = [
 ]
 
 THANKS_RESPONSES = [
-    "u owe me one suck(pod) 😊",
-    "give me money now or ill leak ur ip",
-    "i know ur cheating on me",
-    "thanks man",
-    "no worries",
-    "chit lr chit yin p yw",
+    "You're welcome! 😊",
+    "Anytime! Happy to help!",
+    "No problem at all!",
+    "Glad I could help!",
+    "You're most welcome!",
+    "The pleasure is mine!",
 ]
 
 # How are you patterns and responses
@@ -70,18 +70,6 @@ CAPABILITIES_PATTERNS = [
 ]
 
 CAPABILITIES_RESPONSES = [
-    """Here's what I can do for you! 🌟
-
-/start - Start our chat
-/help - See all my commands
-/joke - Get a funny joke
-/quote - Get an inspiring quote
-/fact - Learn something new
-/roll - Roll a dice
-/calc - Do some math
-/weather - Check the weather
-
-You can also just chat with me! I love making new friends! 🤖✨""",
     """I'm your friendly bot assistant! Here are my skills 🎯
 
 • u want me to tell a joke? (/joke)
@@ -92,19 +80,6 @@ You can also just chat with me! I love making new friends! 🤖✨""",
 • will it rain? who knows (/weather)
 
 Plus, I love chatting! What would you like to try? 🚀""",
-    """Let me show you what I can do! 🌈
-
-🎭 Entertainment:
-• /joke - Fun jokes
-• /quote - Daily inspiration
-• /fact - Interesting facts
-• /roll - Roll the dice
-
-🛠️ Utilities:
-• /calc - Calculator
-• /weather - Weather updates
-
-Want to try any of these? 😊"""
 ]
 
 # Unknown message responses
@@ -136,5 +111,4 @@ def get_response_for_text(text: str) -> str:
     if any(pattern in text for pattern in CAPABILITIES_PATTERNS):
         return random.choice(CAPABILITIES_RESPONSES)
 
-    # Instead of returning None for unknown messages, return a friendly response
     return random.choice(UNKNOWN_MESSAGE_RESPONSES)
