@@ -276,7 +276,11 @@ async def gif_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         search_term = ' '.join(context.args)
-        API_KEY = "AIzaSyDgZW7BwGVnhWJHV-bHgiVHjBbFY8Kp_ak"  # Tenor API key
+        API_KEY = os.environ.get("TENOR_API_KEY")
+        if not API_KEY:
+            await update.message.reply_text("Tenor API key not configured. Please contact the bot administrator.")
+            return
+
         limit = 1
         url = f"https://tenor.googleapis.com/v2/search?q={search_term}&key={API_KEY}&limit={limit}"
 
@@ -303,8 +307,13 @@ async def image_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         search_term = ' '.join(context.args)
-        API_KEY = "AIzaSyDgZW7BwGVnhWJHV-bHgiVHjBbFY8Kp_ak"  # Google Custom Search API key
-        SEARCH_ENGINE_ID = "YOUR_SEARCH_ENGINE_ID"
+        API_KEY = os.environ.get("GOOGLE_SEARCH_API_KEY")
+        SEARCH_ENGINE_ID = os.environ.get("GOOGLE_SEARCH_ENGINE_ID")
+
+        if not API_KEY or not SEARCH_ENGINE_ID:
+            await update.message.reply_text("Google Search API not properly configured. Please contact the bot administrator.")
+            return
+
         url = f"https://www.googleapis.com/customsearch/v1?key={API_KEY}&cx={SEARCH_ENGINE_ID}&q={search_term}&searchType=image"
 
         response = requests.get(url)
