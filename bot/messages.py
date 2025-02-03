@@ -3,23 +3,23 @@ import random
 
 # Greeting patterns and responses
 GREETING_PATTERNS = [
-    'hi', 'hello', 'hey', 'howdy', 'hola', 'morning', 'evening', 'afternoon',
-    'sup', 'yo', 'hiya', 'good morning', 'good evening', 'good afternoon'
+    'hi', 'hello', 'hey', 'howdy', 'nigga', 'morning', 'evening', 'lee lr',
+    'sup', 'yo', 'koko', 'good morning', 'good evening', 'min phane loe'
 ]
 
 GREETING_RESPONSES = [
-    "👋 Hey there! How can I help you today?",
-    "Hello! Nice to see you! 😊",
-    "Hi there! Hope you're having a great day! ✨",
-    "Hey! I'm here if you need anything! 🌟",
-    "Greetings! How may I assist you? 🤖",
-    "Hello! Ready to chat! 💬",
+    "yo nigga whats up",
+    "lee lr br ll phin loe ml",
+    "hey baby girl how you doing ",
+    "u make me bricked whats up ",
+    "br ll chou 1v1 ",
+    "hi what do u want",
 ]
 
 # Goodbye patterns and responses
 GOODBYE_PATTERNS = [
     'bye', 'goodbye', 'see you', 'cya', 'good night', 'night', 'farewell',
-    'have to go', 'gtg', 'catch you later', 'see ya'
+    'have to go', 'gtg', 'time to sleep man', 'see ya'
 ]
 
 GOODBYE_RESPONSES = [
@@ -37,12 +37,12 @@ THANKS_PATTERNS = [
 ]
 
 THANKS_RESPONSES = [
-    "You're welcome! 😊",
-    "Anytime! Happy to help! ✨",
-    "No problem at all! 🌟",
-    "My pleasure! 💫",
-    "Glad I could help! 🤖",
-    "You're most welcome! 💝",
+    "u owe me one suck(pod) 😊",
+    "give me money now or ill leak ur ip",
+    "i know ur cheating on me",
+    "thanks man",
+    "no worries",
+    "chit lr chit yin p yw",
 ]
 
 # How are you patterns and responses
@@ -84,12 +84,12 @@ CAPABILITIES_RESPONSES = [
 You can also just chat with me! I love making new friends! 🤖✨""",
     """I'm your friendly bot assistant! Here are my skills 🎯
 
-• Tell you jokes (/joke)
-• Share inspiring quotes (/quote)
-• Teach you fun facts (/fact)
-• Roll a dice (/roll)
-• Help with calculations (/calc)
-• Check weather (/weather)
+• u want me to tell a joke? (/joke)
+• dumbass quotes (/quote)
+• weird facts (/fact)
+• gamble (/roll)
+• help ur dumbass with maths (/calc)
+• will it rain? who knows (/weather)
 
 Plus, I love chatting! What would you like to try? 🚀""",
     """Let me show you what I can do! 🌈

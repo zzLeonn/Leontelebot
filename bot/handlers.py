@@ -2,7 +2,7 @@ import logging
 import random
 import re
 import os
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, ChatMember
 from telegram.ext import (
     ContextTypes,
     CommandHandler,
@@ -30,10 +30,22 @@ user_preferences = {}
 # Store active polls
 active_polls = {}
 
+async def check_group_permissions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """Check if bot has necessary permissions in a group"""
+    if update.effective_chat.type in ['group', 'supergroup']:
+        bot_member = await context.bot.get_chat_member(
+            update.effective_chat.id,
+            context.bot.id
+        )
+        return bot_member.can_send_messages and bot_member.can_send_media_messages
+    return True
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /start command"""
     log_command(update, "start")
     try:
+        if not await check_group_permissions(update, context):
+            return
         await update.message.reply_text(WELCOME_MESSAGE)
     except Exception as e:
         logging.error(f"Error in start_command: {str(e)}")
@@ -43,6 +55,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /help command"""
     log_command(update, "help")
     try:
+        if not await check_group_permissions(update, context):
+            return
         await update.message.reply_text(HELP_MESSAGE)
     except Exception as e:
         logging.error(f"Error in help_command: {str(e)}")
@@ -52,6 +66,8 @@ async def joke_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /joke command"""
     log_command(update, "joke")
     try:
+        if not await check_group_permissions(update, context):
+            return
         response = requests.get("https://v2.jokeapi.dev/joke/Miscellaneous,Pun,Spooky,Christmas?safe-mode&type=twopart")
         if response.status_code == 200:
             data = response.json()
@@ -70,6 +86,8 @@ async def quote_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /quote command"""
     log_command(update, "quote")
     try:
+        if not await check_group_permissions(update, context):
+           return
         response = requests.get("https://api.quotable.io/random")
         if response.status_code == 200:
             data = response.json()
@@ -85,6 +103,8 @@ async def fact_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /fact command"""
     log_command(update, "fact")
     try:
+        if not await check_group_permissions(update, context):
+            return
         response = requests.get("https://uselessfacts.jsph.pl/api/v2/facts/random?language=en")
         if response.status_code == 200:
             data = response.json()
@@ -100,6 +120,8 @@ async def roll_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /roll command"""
     log_command(update, "roll")
     try:
+        if not await check_group_permissions(update, context):
+            return
         result = random.randint(1, 6)
         await update.message.reply_text(f"🎲 You rolled a {result}!")
     except Exception as e:
@@ -110,6 +132,8 @@ async def calc_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /calc command"""
     log_command(update, "calc")
     try:
+        if not await check_group_permissions(update, context):
+            return
         # Get the expression from the message
         expression = ' '.join(context.args)
         if not expression:
@@ -132,6 +156,8 @@ async def weather_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /weather command"""
     log_command(update, "weather")
     try:
+        if not await check_group_permissions(update, context):
+            return
         if not context.args:
             await update.message.reply_text(WEATHER_USAGE)
             return
@@ -167,6 +193,8 @@ async def poll_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /poll command"""
     log_command(update, "poll")
     try:
+        if not await check_group_permissions(update, context):
+            return
         # Check if there are arguments
         if not context.args or len(context.args) < 3:
             await update.message.reply_text(
@@ -248,6 +276,18 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle user messages"""
     log_message(update)
     try:
+        # Only respond to messages in private chats or when mentioned in groups
+        if update.effective_chat.type != 'private':
+            # Check if bot was mentioned or message is a reply to bot's message
+            if not (update.message.entities and any(
+                entity.type == 'mention' and context.bot.username in update.message.text[entity.offset:entity.offset + entity.length]
+                for entity in update.message.entities
+            )):
+                return
+
+        if not await check_group_permissions(update, context):
+            return
+
         # Check for pattern-matched responses
         response = get_response_for_text(update.message.text)
         if response:
@@ -271,6 +311,8 @@ async def gif_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /gif command"""
     log_command(update, "gif")
     try:
+        if not await check_group_permissions(update, context):
+            return
         if not context.args:
             await update.message.reply_text("Please provide a search term (e.g., /gif cat)")
             return
@@ -302,6 +344,10 @@ async def image_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /image command"""
     log_command(update, "image")
     try:
+        if not await check_group_permissions(update, context):
+            await update.message.reply_text("I don't have permission to send media in this group!")
+            return
+
         if not context.args:
             await update.message.reply_text("Please provide a search term (e.g., /image nature)")
             return
@@ -314,26 +360,43 @@ async def image_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Google Search API not properly configured. Please contact the bot administrator.")
             return
 
-        url = f"https://www.googleapis.com/customsearch/v1?key={API_KEY}&cx={SEARCH_ENGINE_ID}&q={search_term}&searchType=image"
+        url = f"https://www.googleapis.com/customsearch/v1?key={API_KEY}&cx={SEARCH_ENGINE_ID}&q={search_term}&searchType=image&safe=active"
 
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
             if 'items' in data and data['items']:
-                image_url = data['items'][0]['link']
-                await update.message.reply_photo(image_url)
+                # Get first 5 images or less if fewer results are available
+                num_images = min(5, len(data['items']))
+                images = []
+                for i in range(num_images):
+                    image_url = data['items'][i]['link']
+                    images.append(InputMediaPhoto(media=image_url))
+
+                try:
+                    # Send as a media group if multiple images, single photo otherwise
+                    if len(images) > 1:
+                        await update.message.reply_media_group(media=images)
+                    else:
+                        await update.message.reply_photo(images[0].media)
+                except Exception as media_error:
+                    logging.error(f"Error sending media: {str(media_error)}")
+                    await update.message.reply_text("Sorry, I couldn't send the images. Please make sure I have permission to send media in this group.")
             else:
                 await update.message.reply_text("Sorry, I couldn't find any images for that search term.")
         else:
-            await update.message.reply_text(ERROR_MESSAGE)
+            logging.error(f"Google Search API error: {response.status_code} - {response.text}")
+            await update.message.reply_text("Sorry, there was an error searching for images. Please try again later.")
     except Exception as e:
         logging.error(f"Error in image_command: {str(e)}")
-        await update.message.reply_text(ERROR_MESSAGE)
+        await update.message.reply_text("An error occurred while processing your request. Please try again later.")
 
 async def karma_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /karma command - check your karma points"""
     log_command(update, "karma")
     try:
+        if not await check_group_permissions(update, context):
+            return
         user_id = update.effective_user.id
         points = user_points.get(user_id, 0)
         await update.message.reply_text(f"🌟 Your karma points: {points}")
@@ -345,6 +408,8 @@ async def give_karma(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /give command - give karma to another user"""
     log_command(update, "give")
     try:
+        if not await check_group_permissions(update, context):
+            return
         if not update.message.reply_to_message:
             await update.message.reply_text("Please reply to a message to give karma to that user!")
             return
@@ -371,6 +436,8 @@ async def preferences_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     """Handle the /preferences command"""
     log_command(update, "preferences")
     try:
+        if not await check_group_permissions(update, context):
+           return
         user_id = update.effective_user.id
 
         # Initialize preferences if not set
