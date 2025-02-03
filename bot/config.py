@@ -1,7 +1,7 @@
 import os
 
 # Bot Configuration
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8151451706:AAEbkxGi5LuvECuDeATtA4y0fs08dUpe2yM")
+TELEGRAM_TOKEN = "8151451706:AAEbkxGi5LuvECuDeATtA4y0fs08dUpe2yM"
 
 # Command descriptions
 COMMANDS = {

@@ -26,22 +26,19 @@ from .messages import get_response_for_text
 user_points = {}
 # Store user preferences
 user_preferences = {}
+
 # Store active polls
 active_polls = {}
 
 async def check_group_permissions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     """Check if bot has necessary permissions in a group"""
-    try:
-        if update.effective_chat.type in ['group', 'supergroup']:
-            bot_member = await context.bot.get_chat_member(
-                update.effective_chat.id,
-                context.bot.id
-            )
-            return bot_member.status in ['administrator', 'member']
-        return True
-    except Exception as e:
-        logging.error(f"Error checking permissions: {str(e)}")
-        return False
+    if update.effective_chat.type in ['group', 'supergroup']:
+        bot_member = await context.bot.get_chat_member(
+            update.effective_chat.id,
+            context.bot.id
+        )
+        return bot_member.can_send_messages and bot_member.can_send_media_messages
+    return True
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /start command"""
@@ -166,12 +163,8 @@ async def weather_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         city = ' '.join(context.args)
-        API_KEY = os.environ.get("OPENWEATHER_API_KEY")
-
-        if not API_KEY:
-            await update.message.reply_text("Weather service is currently unavailable. Please try again later.")
-            return
-
+        # Using OpenWeatherMap API
+        API_KEY = "4ee0f92143bc013e827f995be66e5677"  # Free API key
         url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
 
         response = requests.get(url)
