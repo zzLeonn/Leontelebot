@@ -6,25 +6,8 @@ from telegram.ext import (
     filters,
     CallbackQueryHandler
 )
-import re
 import logging
-
-async def handle_prefix_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle messages that start with .nigga"""
-    try:
-        # Extract the text after .nigga
-        text = update.message.text
-        match = re.match(r'\.nigga\s*(.*)', text, re.IGNORECASE)  # Case insensitive matching
-        if match:
-            content = match.group(1).strip()
-            if content:
-                logging.info(f"Processing .nigga command with content: {content}")
-                await update.message.reply_text(f"You said: {content}")
-            else:
-                await update.message.reply_text("Please add some text after .nigga")
-    except Exception as e:
-        logging.error(f"Error in handle_prefix_message: {str(e)}")
-        await update.message.reply_text("An error occurred while processing your message.")
+from .messages import get_response_for_text
 
 async def handle_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle vote callbacks"""
@@ -40,9 +23,11 @@ async def preferences_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     """Handle preferences command"""
     await update.message.reply_text("Preferences menu")
 
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle general messages"""
-    await update.message.reply_text(f"You said: {update.message.text}")
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle general messages using our response system"""
+    text = update.message.text
+    response = get_response_for_text(text)
+    await update.message.reply_text(response)
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle errors"""
@@ -58,18 +43,12 @@ def register_handlers(application):
     # Command handlers
     application.add_handler(CommandHandler("preferences", preferences_command))
 
-    # Add handler for .nigga prefix messages - place before the general echo handler
-    application.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(r'(?i)\.nigga.*') & ~filters.COMMAND,  # Case insensitive regex
-        handle_prefix_message
-    ))
-
     # Callback query handlers
     application.add_handler(CallbackQueryHandler(handle_vote, pattern="^vote_"))
     application.add_handler(CallbackQueryHandler(handle_preference_callback, pattern="^(pref|lang)_"))
 
     # General message handler for other messages
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Error handler
     application.add_error_handler(error_handler)

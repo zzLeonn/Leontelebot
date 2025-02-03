@@ -59,7 +59,7 @@ HOW_ARE_YOU_RESPONSES = [
     "Doing well and ready to help! How's your day going? 💫",
     "I'm excellent! Thanks for checking on me! 💝",
     "Yo! I'm totally vibing! What's new with you? 🎵",
-    "Living my best bot life! How about you? 🌈",
+    "Living my best bot life! How about you? 🌈"
 ]
 
 # What can you do patterns and responses
