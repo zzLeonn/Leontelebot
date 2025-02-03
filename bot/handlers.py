@@ -52,20 +52,22 @@ async def check_group_permissions(update: Update, context: ContextTypes.DEFAULT_
                 context.bot.id
             )
 
-            # Check basic permissions
-            if not bot_member.can_send_messages:
-                logging.warning(f"Bot lacks basic message permissions in chat {update.effective_chat.id}")
-                await update.message.reply_text("I don't have permission to send messages in this group!")
+            # For administrators, we already have all basic permissions
+            if bot_member.status == 'administrator':
+                # For media commands, check media permissions
+                command = update.message.text.split()[0][1:] if update.message.text else ""
+                if command in ['gif', 'image', 'poll'] and not bot_member.can_send_media_messages:
+                    logging.warning(f"Bot lacks media permissions in chat {update.effective_chat.id}")
+                    await update.message.reply_text("I don't have permission to send media in this group!")
+                    return False
+                return True
+
+            # For non-admin members, check if we can send messages
+            if bot_member.status != 'member':
+                logging.warning(f"Bot has restricted status in chat {update.effective_chat.id}")
+                await update.message.reply_text("I don't have basic permissions in this group!")
                 return False
 
-            # For media commands, check media permissions
-            command = update.message.text.split()[0][1:] if update.message.text else ""
-            if command in ['gif', 'image', 'poll'] and not bot_member.can_send_media_messages:
-                logging.warning(f"Bot lacks media permissions in chat {update.effective_chat.id}")
-                await update.message.reply_text("I don't have permission to send media in this group!")
-                return False
-
-            return True
         return True
     except Exception as e:
         logging.error(f"Error checking group permissions: {str(e)}")
@@ -314,12 +316,30 @@ async def poll_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not context.args or len(context.args) < 3:
             await update.message.reply_text(
                 "Please provide a question and at least 2 options.\n"
-                "Usage: /poll Question? Option1 Option2 [Option3...]"
+                "Example: /poll \"Favorite Color?\" Red Blue Green"
             )
             return
-        # First argument is the question
-        question = context.args[0].replace('_', ' ')
-        options = [opt.replace('_', ' ') for opt in context.args[1:]]
+
+        # Join all args and split by quotes to handle spaces in question
+        full_text = ' '.join(context.args)
+        parts = full_text.split('"')
+
+        if len(parts) < 2:
+            # No quotes found, use old parsing method
+            question = parts[0].strip()
+            options = parts[0].split()[1:]
+        else:
+            # Extract question from quotes and remaining text as options
+            question = parts[1].strip()
+            remaining_text = ' '.join(parts[2:]).strip()
+            options = [opt.strip() for opt in remaining_text.split() if opt.strip()]
+
+        if len(options) < 2:
+            await update.message.reply_text(
+                "Please provide at least 2 options for the poll.\n"
+                "Example: /poll \"Favorite Color?\" Red Blue Green"
+            )
+            return
 
         # Create keyboard with options
         keyboard = []
@@ -336,14 +356,28 @@ async def poll_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'options': options,
             'votes': {i: [] for i in range(len(options))}
         }
-        
-        await update.message.reply_text(
-            f"📊 Poll: {question}\n\nClick to vote:",
-            reply_markup=reply_markup
-        )
+
+        try:
+            sent_message = await update.message.reply_text(
+                f"📊 Poll: {question}\n\nClick to vote:",
+                reply_markup=reply_markup
+            )
+            if not sent_message:
+                raise Exception("Failed to send poll message")
+        except Exception as send_error:
+            logging.error(f"Error sending poll: {str(send_error)}")
+            await update.message.reply_text(
+                "Sorry, I couldn't create the poll. Please check if I have the necessary permissions."
+            )
+            if update.message.message_id in active_polls:
+                del active_polls[update.message.message_id]
+
     except Exception as e:
         logging.error(f"Error in poll_command: {str(e)}")
-        await update.message.reply_text(ERROR_MESSAGE)
+        await update.message.reply_text(
+            "Sorry, there was an error creating your poll. Please try again with the format:\n"
+            '/poll "Your Question?" Option1 Option2 [Option3...]'
+        )
 
 async def handle_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle poll votes"""
