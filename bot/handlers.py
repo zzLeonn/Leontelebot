@@ -44,13 +44,34 @@ WEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY")
 
 async def check_group_permissions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     """Check if bot has necessary permissions in a group"""
-    if update.effective_chat.type in ['group', 'supergroup']:
-        bot_member = await context.bot.get_chat_member(
-            update.effective_chat.id,
-            context.bot.id
-        )
-        return bot_member.can_send_messages and bot_member.can_send_media_messages
-    return True
+    try:
+        # Only check permissions in group chats
+        if update.effective_chat.type in ['group', 'supergroup']:
+            bot_member = await context.bot.get_chat_member(
+                update.effective_chat.id,
+                context.bot.id
+            )
+
+            # Check basic permissions
+            if not bot_member.can_send_messages:
+                logging.warning(f"Bot lacks basic message permissions in chat {update.effective_chat.id}")
+                await update.message.reply_text("I don't have permission to send messages in this group!")
+                return False
+
+            # For media commands, check media permissions
+            command = update.message.text.split()[0][1:] if update.message.text else ""
+            if command in ['gif', 'image', 'poll'] and not bot_member.can_send_media_messages:
+                logging.warning(f"Bot lacks media permissions in chat {update.effective_chat.id}")
+                await update.message.reply_text("I don't have permission to send media in this group!")
+                return False
+
+            return True
+        return True
+    except Exception as e:
+        logging.error(f"Error checking group permissions: {str(e)}")
+        # Don't expose error details to users
+        await update.message.reply_text("I'm having trouble checking my permissions in this group.")
+        return False
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /start command"""
@@ -328,6 +349,10 @@ async def handle_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle poll votes"""
     query = update.callback_query
     try:
+        if not await check_group_permissions(update, context):
+            await query.answer("I don't have permission to update messages in this group!")
+            return
+
         # Extract poll ID and choice from callback data
         _, poll_id, choice = query.data.split('_')
         poll_id = int(poll_id)
@@ -354,12 +379,16 @@ async def handle_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             votes = len(poll['votes'][idx])
             results += f"\n{option}: {votes} vote(s)"
 
-        # Update message with new results
-        await query.message.edit_text(
-            results,
-            reply_markup=query.message.reply_markup
-        )
-        await query.answer("Your vote has been recorded!")
+        try:
+            # Update message with new results
+            await query.message.edit_text(
+                results,
+                reply_markup=query.message.reply_markup
+            )
+            await query.answer("Your vote has been recorded!")
+        except Exception as edit_error:
+            logging.error(f"Error updating poll results: {str(edit_error)}")
+            await query.answer("Unable to update poll results due to missing permissions!")
 
     except Exception as e:
         logging.error(f"Error in handle_vote: {str(e)}")
@@ -381,6 +410,9 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         if context.bot.username in mention:
                             mentioned = True
                             break
+                    elif entity.type == 'text_mention' and entity.user.id == context.bot.id:
+                        mentioned = True
+                        break
 
             # If not mentioned and not a reply to bot's message, don't respond
             if not mentioned and not (update.message.reply_to_message and 
@@ -429,29 +461,28 @@ async def gif_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         url = f"https://tenor.googleapis.com/v2/search?q={search_term}&key={API_KEY}&limit={limit}"
 
         try:
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+            async with context.bot.session.get(url, timeout=10) as response:
+                if response.status != 200:
+                    logging.error(f"Tenor API error: Status {response.status}")
+                    await update.message.reply_text("Sorry, there was an error with the GIF search.")
+                    return
 
-            if 'error' in data:
-                logging.error(f"Tenor API error: {data['error']}")
-                await update.message.reply_text("Sorry, there was an error with the GIF search.")
-                return
-
-            if data.get('results'):
-                gif_url = data['results'][0]['media_formats']['gif']['url']
-                await update.message.reply_animation(gif_url)
-            else:
-                await update.message.reply_text("Sorry, I couldn't find any GIFs for that search term.")
-        except requests.RequestException as e:
-            logging.error(f"Tenor API error: {str(e)}")
+                data = await response.json()
+                if data.get('results'):
+                    gif_url = data['results'][0]['media_formats']['gif']['url']
+                    try:
+                        await update.message.reply_animation(gif_url)
+                    except Exception as media_error:
+                        logging.error(f"Error sending GIF: {str(media_error)}")
+                        await update.message.reply_text("Sorry, I couldn't send the GIF due to missing permissions or size restrictions.")
+                else:
+                    await update.message.reply_text("Sorry, I couldn't find any GIFs for that search term.")
+        except Exception as api_error:
+            logging.error(f"Tenor API error: {str(api_error)}")
             await update.message.reply_text("Sorry, I couldn't fetch GIFs right now. Please try again later.")
-        except KeyError as e:
-            logging.error(f"Tenor API response parsing error: {str(e)}")
-            await update.message.reply_text("Sorry, there was an error processing the GIF search.")
     except Exception as e:
         logging.error(f"Error in gif_command: {str(e)}")
-        await update.message.reply_text(ERROR_MESSAGE)
+        await update.message.reply_text("An error occurred while processing your request. Please try again later.")
 
 async def image_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /image command"""
