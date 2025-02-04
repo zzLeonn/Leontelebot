@@ -3,7 +3,7 @@ import random
 
 # Greeting patterns and responses
 GREETING_PATTERNS = [
-    'hi', 'hello', 'hey', 'howdy', 'nigga', 'morning', 'evening', 'lee lr',
+    'hi', 'hello', 'hey', 'lee', 'nigga', 'morning', 'evening', 'lee lr',
     'sup', 'yo', 'koko', 'good morning', 'good evening', 'min phane loe'
 ]
 
@@ -23,17 +23,17 @@ GOODBYE_PATTERNS = [
 ]
 
 GOODBYE_RESPONSES = [
-    "Goodbye! Have a great day! 👋",
-    "See you later! Take care! ✨",
-    "Bye! Come back soon! 🌟",
-    "Farewell! It was nice chatting! 😊",
-    "Catch you later! Stay awesome! 🚀",
-    "Have a good one! See you around! 💫",
+    "fine bye bye leave me",
+    "i hope u slip and die",
+    "leave just like your dad",
+    "alright man no one cares",
+    "fuck off",
+    "k",
 ]
 
 # Thank you patterns and responses
 THANKS_PATTERNS = [
-    'thanks', 'thank you', 'thx', 'thank u', 'appreciated', 'gracias', 'ty'
+    'thanks', 'thank you', 'thx', 'thank u', 'appreciated', 'chit tl', 'ty'
 ]
 
 THANKS_RESPONSES = [
@@ -48,41 +48,41 @@ THANKS_RESPONSES = [
 # How are you patterns and responses
 HOW_ARE_YOU_PATTERNS = [
     'how are you', 'how r u', 'how\'re you', 'how you doing', 'whats up',
-    'what\'s up', 'sup', 'how do you do', 'how are things', 'yo'
+    'what\'s up', 'sup', 'how do you do', 'you good', 'yo'
 ]
 
 HOW_ARE_YOU_RESPONSES = [
-    "I'm doing great, thanks for asking! How about you? 😊",
-    "All systems operational and feeling fantastic! How are you? 🤖",
-    "I'm having a wonderful day! Hope you are too! ✨",
-    "I'm good! Always happy to chat with you! 🌟",
-    "Doing well and ready to help! How's your day going? 💫",
-    "I'm excellent! Thanks for checking on me! 💝",
-    "Yo! I'm totally vibing! What's new with you? 🎵",
-    "Living my best bot life! How about you? 🌈"
+    "oh im actually good im just suicidal",
+    "no one loves me im gonna die alone",
+    "i think im having a mental breakdown",
+    "ok bro no one cares",
+    "i wanna kill myself",
+    "eat shit",
+    "do u think things are good u dumb fuck",
+    "depressed gimme ways to get out"
 ]
 
 # What can you do patterns and responses
 CAPABILITIES_PATTERNS = [
-    'what can you do', 'what do you do', 'help me', 'your abilities',
+    'yo leon', 'bro what can leon do', 'help me', 'your abilities',
     'what are you capable of', 'what are your features', 'commands',
     'what can i do', 'how to use', 'show me'
 ]
 
 CAPABILITIES_RESPONSES = [
-    """Here's what I can do for you! 🌟
+    """some shit i can do for ur lazy ass
 
-/start - Start our chat
-/help - See all my commands
-/joke - Get a funny joke
-/quote - Get an inspiring quote
-/fact - Learn something new
-/roll - Roll a dice
-/calc - Do some math
-/weather - Check the weather
+/start - be nice to u
+/help - list my entire command shit
+/joke - get an ai unfunny joke
+/quote - quotes to be less depressed
+/fact - u never know what u will find
+/roll - gamble it out
+/calc - math bro ew
+/weather - will it rain or will it be a tsunami
 
-You can also just chat with me! I love making new friends! 🤖✨""",
-    """I'm Leon, your friendly bot assistant! Here are my skills 🎯
+u can chat with me too im your friendly depressed ai""",
+    """im leon this is some of the things i can do for u
 
 • u want me to tell a joke? (/joke)
 • dumbass quotes (/quote)
@@ -91,30 +91,30 @@ You can also just chat with me! I love making new friends! 🤖✨""",
 • help ur dumbass with maths (/calc)
 • will it rain? who knows (/weather)
 
-Plus, I love chatting! What would you like to try? 🚀""",
-    """Let me show you what I can do! 🌈
+i dont love chatting but i love slavary""",
+    """make me yours
 
-🎭 Entertainment:
-• /joke - Fun jokes
-• /quote - Daily inspiration
-• /fact - Interesting facts
-• /roll - Roll the dice
+hee hee haa haa
+• /joke - yee pay ya ma lr
+• /quote - always give up
+• /fact - pig cant look up
+• /roll - bet your house
 
-🛠️ Utilities:
-• /calc - Calculator
-• /weather - Weather updates
+cool shit:
+• /calc - maths answer generator
+• /weather - moe tay ywar tine min ko lwan tl
 
-Want to try any of these? 😊"""
+cum baby"""
 ]
 
 # Unknown message responses
 UNKNOWN_MESSAGE_RESPONSES = [
-    "I'm intrigued! Tell me more about that! 🤔",
-    "That's interesting! Want to try one of my commands? Use /help to see what I can do! ✨",
-    "Cool! By the way, I know lots of fun facts and jokes. Want to hear one? Try /fact or /joke! 🌟",
-    "Interesting! I'd love to chat more about that! I can also help with other things - just type /help to see how! 🎯",
-    "Nice! While we're chatting, would you like to hear a joke or get an inspiring quote? Just use /joke or /quote! 💫",
-    "That's fascinating! I can also help you with weather updates, calculations, and more! Type /help to explore! 🌈"
+    "aww hote lr phin loe pay ya ma lr ae tot",
+    "wow so interesting omg omoshiroi im so happy for u",
+    "nigga shut up",
+    "bro i made this bot when i was drunk man",
+    "try making something like this first u fuck",
+    "lets have sough rex"
 ]
 
 def get_response_for_text(text: str) -> str:
