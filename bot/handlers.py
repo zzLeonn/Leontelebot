@@ -6,6 +6,7 @@ from telegram.ext import (
     ContextTypes,
     CommandHandler,
     MessageHandler,
+     ConversationHandler,
     filters,
     CallbackQueryHandler,
 )
@@ -148,15 +149,97 @@ async def gif_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_animation(image_urls[0])
 
 
+POLL_QUESTION, POLL_OPTIONS, ADD_OPTION = range(3)
+
 async def poll_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle the /poll command"""
-    if len(context.args) < 2:
-        await update.message.reply_text("Usage: /poll Question Option1 Option2 [Option3...]")
-        return
-    question = context.args[0]
-    options = context.args[1:]
-    # Add logic to create a poll
-    await update.message.reply_text(f"Poll created: {question} with options {', '.join(options)}")
+    """Start poll creation conversation."""
+    # Initialize poll data in user_data
+    context.user_data['poll'] = {"question": None, "options": []}
+    await update.message.reply_text("Please send the poll question:")
+    return POLL_QUESTION
+
+async def poll_question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle the poll question input."""
+    poll = context.user_data.get('poll', {})
+    poll['question'] = update.message.text
+    context.user_data['poll'] = poll
+
+    # Show inline keyboard to add options or finish poll
+    keyboard = [
+        [InlineKeyboardButton("Add Option", callback_data="add_option")],
+        [InlineKeyboardButton("Finish Poll", callback_data="finish_poll")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        f"Poll Question: {poll['question']}\n"
+        "Now, click 'Add Option' to add an option, or 'Finish Poll' if you're done.",
+        reply_markup=reply_markup
+    )
+    return POLL_OPTIONS
+
+async def poll_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle inline keyboard callbacks for poll creation."""
+    query = update.callback_query
+    await query.answer()  # Acknowledge the callback
+    data = query.data
+
+    if data == "add_option":
+        # Prompt user to send a new option as text
+        await query.message.reply_text("Please send the new poll option:")
+        return ADD_OPTION
+
+    elif data == "finish_poll":
+        # Finalize poll creation and show the poll summary
+        poll = context.user_data.get('poll', {})
+        question = poll.get('question', 'No question')
+        options = poll.get('options', [])
+        if not options:
+            await query.message.reply_text("You need to add at least one option.")
+            return POLL_OPTIONS
+        options_list = "\n".join(f"{i+1}. {opt}" for i, opt in enumerate(options))
+        await query.message.reply_text(
+            f"Poll created!\nQuestion: {question}\nOptions:\n{options_list}"
+        )
+        return ConversationHandler.END
+
+async def add_option_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Receive new poll option and update the poll summary."""
+    new_option = update.message.text
+    poll = context.user_data.get('poll', {})
+    poll.setdefault('options', []).append(new_option)
+    context.user_data['poll'] = poll
+
+    # Build a summary of the poll
+    options_list = "\n".join(f"{i+1}. {opt}" for i, opt in enumerate(poll['options']))
+    keyboard = [
+        [InlineKeyboardButton("Add Option", callback_data="add_option")],
+        [InlineKeyboardButton("Finish Poll", callback_data="finish_poll")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        f"Poll Question: {poll.get('question')}\n"
+        f"Options:\n{options_list}\n\n"
+        "Click 'Add Option' to add more or 'Finish Poll' to complete.",
+        reply_markup=reply_markup
+    )
+    return POLL_OPTIONS
+
+async def cancel_poll(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancel the poll creation process."""
+    await update.message.reply_text("Poll creation cancelled.")
+    return ConversationHandler.END
+
+def get_poll_conversation_handler():
+    """Return the ConversationHandler for poll creation."""
+    return ConversationHandler(
+        entry_points=[CommandHandler("poll", poll_command)],
+        states={
+            POLL_QUESTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, poll_question_handler)],
+            POLL_OPTIONS: [CallbackQueryHandler(poll_callback_handler)],
+            ADD_OPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_option_handler)]
+        },
+        fallbacks=[CommandHandler("cancel", cancel_poll)]
+    )
 
 karma_data = {}
 
@@ -270,22 +353,24 @@ def register_handlers(application):
     application.add_handler(CommandHandler("start", start_command))  # Handles the /start command
     application.add_handler(CommandHandler("help", help_command))  # Handles the /help command
     application.add_handler(CommandHandler("cancel", cancel_command))  # Handles the /cancel command
-    application.add_handler(CommandHandler("preferences", preferences_command))
-      # Handles the /preferences command
+    application.add_handler(CommandHandler("preferences", preferences_command))  # Handles the /preferences command
     application.add_handler(CommandHandler("weather", weather_command))  # Handles the /weather command
-    application.add_handler(CommandHandler("poll", poll_command))  # Handles the /poll command
+    # Remove the plain /poll command handler since we are using a ConversationHandler for polls
+    # application.add_handler(CommandHandler("poll", poll_command))
     application.add_handler(CommandHandler("karma", karma_command))  # Handles the /karma command
     application.add_handler(CommandHandler("give", give_command))  # Handles the /give command
     application.add_handler(CommandHandler("gif", gif_command))  # Handles the /gif command
     application.add_handler(CommandHandler("image", image_command))  # Handles the /image command
-    application.add_handler(CommandHandler("karma", karma_command))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))  # Handles general text messages
+    
+    # Add the poll conversation handler for a more interactive poll creation process
+    application.add_handler(get_poll_conversation_handler())
+
+    # General text message handler (if not already registered)
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Callback query handlers
     application.add_handler(CallbackQueryHandler(handle_vote, pattern="^vote_"))  # Handles vote callbacks
-    application.add_handler(CallbackQueryHandler(handle_preference_callback, pattern="^pref_")) # Handles preference callbacks
-    # General message handler for other messages
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))  # Handles general text messages
+    application.add_handler(CallbackQueryHandler(handle_preference_callback, pattern="^pref_"))  # Handles preference callbacks
 
     # Error handler
     application.add_error_handler(error_handler)  # Handles errors
