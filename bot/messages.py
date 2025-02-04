@@ -82,7 +82,7 @@ CAPABILITIES_RESPONSES = [
 /weather - Check the weather
 
 You can also just chat with me! I love making new friends! 🤖✨""",
-    """I'm your friendly bot assistant! Here are my skills 🎯
+    """I'm Leon, your friendly bot assistant! Here are my skills 🎯
 
 • u want me to tell a joke? (/joke)
 • dumbass quotes (/quote)
