@@ -1,7 +1,7 @@
 import os
-from dotenv import load_dotenv  # Import the load_dotenv function
+from dotenv import load_dotenv 
 import requests
-from telegram import Update
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
 from telegram.ext import (
     ContextTypes,
     CommandHandler,
@@ -158,21 +158,59 @@ async def poll_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Add logic to create a poll
     await update.message.reply_text(f"Poll created: {question} with options {', '.join(options)}")
 
+karma_data = {}
+
 async def karma_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /karma command"""
     user_id = update.message.from_user.id
-    # Add logic to fetch karma points for the user
-    await update.message.reply_text(f"Your karma points: 100 (example)")
+    username = update.message.from_user.username
+
+    # Initialize karma if the user doesn't exist in the dictionary
+    if user_id not in karma_data:
+        karma_data[user_id] = {"username": username, "karma": 0}
+
+    # Fetch the user's karma
+    karma = karma_data[user_id]["karma"]
+
+    # Reply with the user's karma points
+    await update.message.reply_text(f"@{username}, your karma points: {karma}")
+
+async def track_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Track user messages and update karma."""
+    user_id = update.message.from_user.id
+    username = update.message.from_user.username
+
+    # Initialize karma if the user doesn't exist in the dictionary
+    if user_id not in karma_data:
+        karma_data[user_id] = {"username": username, "karma": 0}
+
+    # Award 1 karma point for sending a message
+    karma_data[user_id]["karma"] += 1
 
 async def give_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the /give command"""
     if not update.message.reply_to_message:
         await update.message.reply_text("Please reply to a message to give karma.")
         return
+
     giver_id = update.message.from_user.id
     receiver_id = update.message.reply_to_message.from_user.id
-    # Add logic to give karma
-    await update.message.reply_text(f"Karma given to user {receiver_id} (example)")
+
+    # Ensure both users exist in the karma data
+    if giver_id not in karma_data:
+        karma_data[giver_id] = {"username": update.message.from_user.username, "karma": 0}
+    if receiver_id not in karma_data:
+        karma_data[receiver_id] = {"username": update.message.reply_to_message.from_user.username, "karma": 0}
+
+    # Transfer 1 karma point from giver to receiver
+    if karma_data[giver_id]["karma"] > 0:
+        karma_data[giver_id]["karma"] -= 1
+        karma_data[receiver_id]["karma"] += 1
+        await update.message.reply_text(
+            f"@{karma_data[giver_id]['username']} gave 1 karma to @{karma_data[receiver_id]['username']}!"
+        )
+    else:
+        await update.message.reply_text("You don't have enough karma to give.")
 
 async def handle_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle vote callbacks"""
@@ -180,13 +218,36 @@ async def handle_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer("Vote registered!")
 
 async def handle_preference_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle preference callbacks"""
+    """Handle callbacks from the preferences menu."""
     query = update.callback_query
-    await query.answer("Preference updated!")
+    await query.answer()  # Acknowledge the callback
+
+    data = query.data
+    response_text = "Unknown preference option."
+
+    if data == "pref_language":
+        # Here you might display a sub-menu to select a language.
+        response_text = "Language settings: Choose your preferred language."
+    elif data == "pref_notifications":
+        # Toggle notifications (this is just a placeholder).
+        response_text = "Notifications toggled."
+    elif data == "pref_theme":
+        # Change theme option (this is just a placeholder).
+        response_text = "Theme changed."
+    
+    # Optionally, update the message or send a new one:
+    await query.edit_message_text(text=response_text)
+
 
 async def preferences_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle preferences command"""
-    await update.message.reply_text("Preferences menu")
+    """Handle preferences command by showing an inline keyboard menu."""
+    keyboard = [
+        [InlineKeyboardButton("Set Language", callback_data="pref_language")],
+        [InlineKeyboardButton("Toggle Notifications", callback_data="pref_notifications")],
+        [InlineKeyboardButton("Change Theme", callback_data="pref_theme")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Preferences Menu:\nChoose an option:", reply_markup=reply_markup)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle general messages using our response system"""
@@ -209,18 +270,20 @@ def register_handlers(application):
     application.add_handler(CommandHandler("start", start_command))  # Handles the /start command
     application.add_handler(CommandHandler("help", help_command))  # Handles the /help command
     application.add_handler(CommandHandler("cancel", cancel_command))  # Handles the /cancel command
-    application.add_handler(CommandHandler("preferences", preferences_command))  # Handles the /preferences command
+    application.add_handler(CommandHandler("preferences", preferences_command))
+      # Handles the /preferences command
     application.add_handler(CommandHandler("weather", weather_command))  # Handles the /weather command
     application.add_handler(CommandHandler("poll", poll_command))  # Handles the /poll command
     application.add_handler(CommandHandler("karma", karma_command))  # Handles the /karma command
     application.add_handler(CommandHandler("give", give_command))  # Handles the /give command
     application.add_handler(CommandHandler("gif", gif_command))  # Handles the /gif command
     application.add_handler(CommandHandler("image", image_command))  # Handles the /image command
+    application.add_handler(CommandHandler("karma", karma_command))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))  # Handles general text messages
 
     # Callback query handlers
     application.add_handler(CallbackQueryHandler(handle_vote, pattern="^vote_"))  # Handles vote callbacks
-    application.add_handler(CallbackQueryHandler(handle_preference_callback, pattern="^(pref|lang)_"))  # Handles preference callbacks
-
+    application.add_handler(CallbackQueryHandler(handle_preference_callback, pattern="^pref_")) # Handles preference callbacks
     # General message handler for other messages
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))  # Handles general text messages
 

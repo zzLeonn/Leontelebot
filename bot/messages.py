@@ -113,6 +113,8 @@ UNKNOWN_MESSAGE_RESPONSES = [
     "wow so interesting omg omoshiroi im so happy for u",
     "nigga shut up",
     "bro i made this bot when i was drunk man",
+    "so what bro do i look like i care"
+    "get out of ur country first lmfao"
     "try making something like this first u fuck",
     "lets have sough rex"
 ]
