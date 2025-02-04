@@ -16,7 +16,8 @@ load_dotenv()
 
 from bot.logger import log_command
 from config import WELCOME_MESSAGE, HELP_MESSAGE, ERROR_MESSAGE
-from messages import get_response_for_text
+from bot.messages import get_response_for_text
+
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
