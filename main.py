@@ -3,11 +3,14 @@ import sys
 from bot import create_bot
 
 # Configure logging before anything else
+import logging
+
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO,  # Use INFO for production, DEBUG for development
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
     handlers=[
-        logging.StreamHandler(sys.stdout)
+        logging.StreamHandler(),  # Log to console
+        logging.FileHandler("bot.log"),  # Log to a file
     ]
 )
 

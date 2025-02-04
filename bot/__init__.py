@@ -1,7 +1,9 @@
 import os
 from telegram.ext import ApplicationBuilder
-from .config import TELEGRAM_TOKEN
+from config import TELEGRAM_TOKEN
 from .handlers import register_handlers
+
+__all__ = ['TELEGRAM_TOKEN']
 
 def create_bot():
     """Initialize and configure the bot application"""

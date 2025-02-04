@@ -5,14 +5,20 @@ import os
 load_dotenv()
 
 # Bot Configuration
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # Changed to match .env variable
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_SEARCH_ENGINE_ID = os.getenv("GOOGLE_SEARCH_ENGINE_ID")
 WEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
 # Validate environment variables
 if not TELEGRAM_TOKEN:
-    raise ValueError("TELEGRAM_BOT_TOKEN environment variable is not set.")
+    raise ValueError("TELEGRAM_TOKEN environment variable is not set.")
 if not WEATHER_API_KEY:
     raise ValueError("OPENWEATHER_API_KEY environment variable is not set.")
+if not GOOGLE_API_KEY:
+    raise ValueError("GOOGLE_API_KEY environment variable is not set.")
+if not GOOGLE_SEARCH_ENGINE_ID:
+    raise ValueError("GOOGLE_SEARCH_ENGINE_ID environment variable is not set.")
 
 # Command descriptions
 COMMANDS = [
