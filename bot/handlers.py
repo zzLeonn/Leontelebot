@@ -35,15 +35,20 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def send_telegram_message():
-    # Create the message with the friend's username
-    message = f"@{FRIEND_USERNAME}, Leon is playing on your account!"
+    try:
+        # Create the message with the friend's username
+        message = f"@{FRIEND_USERNAME}, Leon is playing on your account!"
 
-    # Initialize the bot
-    bot = telegram.Bot(token=TELEGRAM_TOKEN)
+        # Initialize the bot
+        bot = telegram.Bot(token=TELEGRAM_TOKEN)
 
-    # Send the message to the group
-    bot.send_message(chat_id=GROUP_CHAT_ID, text=message)
-
+        # Send the message to the group
+        bot.send_message(chat_id=GROUP_CHAT_ID, text=message)
+        logger.info("Message sent successfully!")
+    except telegram.error.TelegramError as e:
+        logger.error(f"Failed to send message: {e}")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
 # Utility function to search for images/GIFs using Google Custom Search API
 def search_images(query, search_type="image"):
     """
