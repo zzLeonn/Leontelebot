@@ -1,37 +1,44 @@
 import os
-from dotenv import load_dotenv 
 import requests
+import logging
+import telegram
+from dotenv import load_dotenv
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, Update
 from telegram.ext import (
-    ContextTypes,
+    Application,
     CommandHandler,
     MessageHandler,
-     ConversationHandler,
-    filters,
+    ConversationHandler,
     CallbackQueryHandler,
+    filters,
+    ContextTypes
 )
-import logging
-
-# Load environment variables from the .env file
-load_dotenv()
-
 from bot.logger import log_command
 from config import WELCOME_MESSAGE, HELP_MESSAGE, ERROR_MESSAGE
 from bot.messages import get_response_for_text
 
+# Load environment variables
+load_dotenv()
+
+# Environment variables
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GOOGLE_SEARCH_ENGINE_ID = os.getenv("GOOGLE_SEARCH_ENGINE_ID", "f67799191a4754602")
+GROUP_CHAT_ID = os.getenv("GROUP_CHAT_ID")
+FRIEND_USERNAME = os.getenv("FRIEND_USERNAME")
+
+if not GOOGLE_API_KEY or not GOOGLE_SEARCH_ENGINE_ID:
+    raise ValueError("Google API key or Search Engine ID is missing.")
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Environment variables for API keys
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-GOOGLE_SEARCH_ENGINE_ID = os.getenv("GOOGLE_SEARCH_ENGINE_ID")
-if not GOOGLE_SEARCH_ENGINE_ID:
-    raise ValueError("GOOGLE_SEARCH_ENGINE_ID environment variable is not set.")
-    raise ValueError("No Google API key found in environment variables.")
-GOOGLE_SEARCH_ENGINE_ID = os.getenv("GOOGLE_SEARCH_ENGINE_ID", "f67799191a4754602")
+# Function to send Telegram message when game starts
+def send_telegram_message():
+    message = f"{FRIEND_USERNAME} Leon is playing your account"
+    bot = telegram.Bot(token=TELEGRAM_TOKEN)
+    bot.send_message(chat_id=GROUP_CHAT_ID, text=message)
 
 # Utility function to search for images/GIFs using Google Custom Search API
 def search_images(query, search_type="image"):
@@ -241,60 +248,6 @@ def get_poll_conversation_handler():
         fallbacks=[CommandHandler("cancel", cancel_poll)]
     )
 
-karma_data = {}
-
-async def karma_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle the /karma command"""
-    user_id = update.message.from_user.id
-    username = update.message.from_user.username
-
-    # Initialize karma if the user doesn't exist in the dictionary
-    if user_id not in karma_data:
-        karma_data[user_id] = {"username": username, "karma": 0}
-
-    # Fetch the user's karma
-    karma = karma_data[user_id]["karma"]
-
-    # Reply with the user's karma points
-    await update.message.reply_text(f"@{username}, your karma points: {karma}")
-
-async def track_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Track user messages and update karma."""
-    user_id = update.message.from_user.id
-    username = update.message.from_user.username
-
-    # Initialize karma if the user doesn't exist in the dictionary
-    if user_id not in karma_data:
-        karma_data[user_id] = {"username": username, "karma": 0}
-
-    # Award 1 karma point for sending a message
-    karma_data[user_id]["karma"] += 1
-
-async def give_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle the /give command"""
-    if not update.message.reply_to_message:
-        await update.message.reply_text("Please reply to a message to give karma.")
-        return
-
-    giver_id = update.message.from_user.id
-    receiver_id = update.message.reply_to_message.from_user.id
-
-    # Ensure both users exist in the karma data
-    if giver_id not in karma_data:
-        karma_data[giver_id] = {"username": update.message.from_user.username, "karma": 0}
-    if receiver_id not in karma_data:
-        karma_data[receiver_id] = {"username": update.message.reply_to_message.from_user.username, "karma": 0}
-
-    # Transfer 1 karma point from giver to receiver
-    if karma_data[giver_id]["karma"] > 0:
-        karma_data[giver_id]["karma"] -= 1
-        karma_data[receiver_id]["karma"] += 1
-        await update.message.reply_text(
-            f"@{karma_data[giver_id]['username']} gave 1 karma to @{karma_data[receiver_id]['username']}!"
-        )
-    else:
-        await update.message.reply_text("You don't have enough karma to give.")
-
 async def handle_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle vote callbacks"""
     query = update.callback_query
@@ -355,10 +308,6 @@ def register_handlers(application):
     application.add_handler(CommandHandler("cancel", cancel_command))  # Handles the /cancel command
     application.add_handler(CommandHandler("preferences", preferences_command))  # Handles the /preferences command
     application.add_handler(CommandHandler("weather", weather_command))  # Handles the /weather command
-    # Remove the plain /poll command handler since we are using a ConversationHandler for polls
-    # application.add_handler(CommandHandler("poll", poll_command))
-    application.add_handler(CommandHandler("karma", karma_command))  # Handles the /karma command
-    application.add_handler(CommandHandler("give", give_command))  # Handles the /give command
     application.add_handler(CommandHandler("gif", gif_command))  # Handles the /gif command
     application.add_handler(CommandHandler("image", image_command))  # Handles the /image command
     
