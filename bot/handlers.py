@@ -308,6 +308,11 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(ERROR_MESSAGE)
     except:
         pass
+async def alert_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    send_telegram_message()  # Call the function
+    await update.message.reply_text("Alert sent!")
+
+
 
 def register_handlers(application):
     """Register all handlers with the application"""
@@ -319,7 +324,7 @@ def register_handlers(application):
     application.add_handler(CommandHandler("weather", weather_command))  # Handles the /weather command
     application.add_handler(CommandHandler("gif", gif_command))  # Handles the /gif command
     application.add_handler(CommandHandler("image", image_command))  # Handles the /image command
-    
+    application.add_handler(CommandHandler("alert", alert_command))
     # Add the poll conversation handler for a more interactive poll creation process
     application.add_handler(get_poll_conversation_handler())
 
