@@ -34,10 +34,14 @@ if not GOOGLE_API_KEY or not GOOGLE_SEARCH_ENGINE_ID:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Function to send Telegram message when game starts
 def send_telegram_message():
-    message = f"{FRIEND_USERNAME} Leon is playing your account"
+    # Create the message with the friend's username
+    message = f"@{FRIEND_USERNAME}, Leon is playing on your account!"
+
+    # Initialize the bot
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
+
+    # Send the message to the group
     bot.send_message(chat_id=GROUP_CHAT_ID, text=message)
 
 # Utility function to search for images/GIFs using Google Custom Search API
